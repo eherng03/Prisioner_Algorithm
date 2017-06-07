@@ -4,21 +4,62 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class Algorithm {
 
-	Individuo[] individuos;
-	Torneo torneo;
-	private static int num_casillas = 100;
-	private static float probabilidad_crossover = (float) 0.70;
-	private static double probabilidad_mutacion = 0.01;
-	private static int mejorAptitud;
+	private Individuo[] individuos;
+	private Torneo torneo;
+	private int num_casillas = 100;
+	private final float probabilidad_crossover = (float) 0.50;
+	private final double probabilidad_mutacion = 0.01;
+	private int mejorAptitud;
+	private Individuo mejorIndividuo;
+	private final int longitudHistorial = 6;
+	private static int num_max_generaciones = 20;
 	
 	
 	
 	public Algorithm(Individuo[] individuos){
-		
-		
-		
-		
 		this.individuos = individuos;
+		for(int i = 0; i < individuos.length; i++){
+			this.individuos[i] = new Individuo(longitudHistorial, i+1);
+		}
+	}
+	
+	public void run(){
+		
+		int t = 0;
+		while(t < num_max_generaciones){
+			for(int i = 0; i < individuos.length; i++){
+				individuos[i].setPuntos(0);
+			}
+			Individuo[] seleccionados = null;
+			seleccionados = this.seleccion();
+			seleccionados = crossOver(seleccionados);
+			seleccionados = mutacion(seleccionados);
+			
+			//========================================================
+			int mejor = 0;
+			int media = 0;
+			
+			for(int i = 0; i < seleccionados.length; i++){
+				if(seleccionados[i].getPuntos() >= seleccionados[mejor].getPuntos()){
+					mejor = i;
+				}
+				media += seleccionados[i].getPuntos();
+			}
+			setProbabilidades(media);
+			media = media/seleccionados.length;
+			
+			if(seleccionados[mejor].getPuntos() >= mejorAptitud ){
+				this.individuos = seleccionados;
+			}
+			if(seleccionados[mejor].getPuntos() == individuos[0].getCadena().size()){
+				System.out.println("El mejor individuo de la generación es: " + seleccionados[mejor].getCadena() + ", con aptitud -> " + seleccionados[mejor].getPuntos());
+				
+				break;
+			}
+			System.out.println("====================================================================");
+			t++;
+		}
+		
 	}
 
 	
@@ -29,15 +70,15 @@ public class Algorithm {
 	 */
 	private Individuo[] mutacion(Individuo[] modificados) {
 		for(int i = 0; i < modificados.length; i++){
-			ArrayList<Integer> cadena = modificados[i].getCadena();
-			for(int j = 0; j < cadena.size(); j++){
+			int[] cadena = modificados[i].getEstrategia();
+			for(int j = 0; j < cadena.length; j++){
 				double rand = ThreadLocalRandom.current().nextDouble();
 				if(rand <= probabilidad_mutacion){
-					//cadena[j] = (cadena[j] + 1) % 2;
+					cadena[j] = (cadena[j] + 1) % 2;
 				}
 				//si no no muta
 			}
-			//modificados[i].setCadena(cadena);
+			modificados[i].setEstrategia(cadena);
 		}
 		return modificados;
 		
@@ -49,9 +90,9 @@ public class Algorithm {
 	 * 
 	 */
 	private Individuo[] seleccion() {
+		//TORNEO
 		torneo = new Torneo(individuos);
 		torneo.play();
-		
 		
 		
 		int mejor = 0;
@@ -66,21 +107,22 @@ public class Algorithm {
 		
 		setProbabilidades(media);
 		media = media/individuos.length;
-		System.out.println("El mejor individuo de la generacion es: " +  Arrays.toString(individuos[mejor].getCadena()) + ", con aptitud -> " + individuos[mejor].getAptitud());
+		System.out.println("El mejor individuo de la generacion es: " +  individuos[mejor].getCadena() + ", con aptitud -> " + individuos[mejor].getPuntos());
 		mejorAptitud = individuos[mejor].getPuntos();
 		System.out.println("La media de aptitudes es: " + media);
 		return setCasillas(mejor);
 	}
 
 	/**
-	 * 
+	 * Método que asigna las casillas a los individuos según los puntos obtenidos, y le asigna al
+	 * mejor las casillas sobrantes
 	 * @param mejor
 	 */
 	private Individuo[] setCasillas(int mejor) {
 		int[] casillas = new int[individuos.length];
 		int sumaCasillas = 0;
 		for(int i = 0; i < individuos.length; i++){
-			casillas[i] = (int) (individuos[i].getProbabilidad() * 100);
+			casillas[i] = (int) (individuos[i].getProbabilidad() * num_casillas);
 			System.out.println("El numero de casillas del individuo " + (i+1) + " es " + casillas[i]);
 			sumaCasillas += casillas[i];
 		}
@@ -100,6 +142,7 @@ public class Algorithm {
 			individuos[individuo].setCasillas(i, i + casillas[individuo] - 1);
 			i += casillas[individuo];
 			individuo++;
+			
 		}	
 		
 		return girarRuleta();
@@ -143,7 +186,7 @@ public class Algorithm {
 
 	/**
 	 * 
-	 */
+	 *
 	private void generacionAleatoria() {
 		for(int i = 0; i < individuos.length; i++){
 			individuos[i] = new Individuo(r);
@@ -152,47 +195,50 @@ public class Algorithm {
 	}
 	
 	/**
+	 * El crossover se hace sobre las estrategias de los jugadores
+	 *
 	 * @param modificados 
 	 * @return 
 	 * @return 
 	 * 
-	 */
+	 **/
 	private Individuo[] crossOver(Individuo[] modificados) {
 		ArrayList<Individuo> cruzan = new ArrayList<>();
 		ArrayList<Integer> posiciones = new ArrayList<>();
-		for(int i = 0; i < individuos.length; i++){
+		for(int i = 0; i < modificados.length; i++){
 			double aux = ThreadLocalRandom.current().nextDouble();
 			if(aux <= probabilidad_crossover){
-				cruzan.add(individuos[i]);
-				posiciones.add(i);	//los que cruzan los pongo a null para volver a introducirlos despues del crossover
+				cruzan.add(modificados[i]);
+				posiciones.add(i);	//Guardo las posiciones de los que cruzan
 			}
 		}
-		
+		//Si los que cruzan no  sn pares quito uno aleatorio
 		if(cruzan.size() % 2 != 0){
-			int aux = ThreadLocalRandom.current().nextInt(0, cruzan.size()-1);
+			int aux = ThreadLocalRandom.current().nextInt(0, cruzan.size());
 			cruzan.remove(aux);
 			posiciones.remove(aux);
 		}
+		
 		int numParejas = cruzan.size() / 2;
 		int contador = 0;
 		
 		for(int j = 0; j < numParejas; j++){
-			int[][] cadenas = new int[2][cruzan.get(0).getCadena().size()];
-			int  corte = ThreadLocalRandom.current().nextInt(0, individuos[0].getCadena().size());
+			int[][] cadenas = new int[2][cruzan.get(0).getEstrategia().length];
+			int  corte = ThreadLocalRandom.current().nextInt(0, individuos[0].getEstrategia().length);
 			int k;
-			//Numeros hasta el corte
+			//Numeros hasta el corte (k)
 			for(k = 0; k < corte; k++){
-				cadenas[0][k] = cruzan.get(contador).getCadena()[k];
-				cadenas[1][k] = cruzan.get(contador+1).getCadena()[k];
+				cadenas[0][k] = cruzan.get(contador).getEstrategia()[k];
+				cadenas[1][k] = cruzan.get(contador+1).getEstrategia()[k];
 			}
 			//Numeros despues del corte
-			while( k < cruzan.get(0).getCadena().length){
-				cadenas[0][k] = cruzan.get(contador+1).getCadena()[k];
-				cadenas[1][k] = cruzan.get(contador).getCadena()[k];
+			while( k < cruzan.get(0).getEstrategia().length){
+				cadenas[0][k] = cruzan.get(contador+1).getEstrategia()[k];
+				cadenas[1][k] = cruzan.get(contador).getEstrategia()[k];
 				k++;
 			}
-			cruzan.get(contador).setCadena(cadenas[0]);
-			cruzan.get(contador+1).setCadena(cadenas[1]);
+			cruzan.get(contador).setEstrategia(cadenas[0]);
+			cruzan.get(contador+1).setEstrategia(cadenas[1]);
 			contador += 2;
 			if(contador+1 >= cruzan.size()){
 				break;
@@ -205,9 +251,4 @@ public class Algorithm {
 		return modificados;
 	}
 
-
-	public void crossover() {
-		// TODO Auto-generated method stub
-		
-	}
 }

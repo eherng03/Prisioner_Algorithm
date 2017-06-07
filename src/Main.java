@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class Main {
 
 	private static int r = 7;
-	private static int num_max_generaciones = 20;
+
 	private static Individuo[] individuos;
 	
 	
@@ -21,8 +21,9 @@ public class Main {
 		int n = scan.nextInt();
 		individuos = new Individuo[n];
 		
-		Algorithm algoritmo = new Algorithm(individuos);
 		
-		algoritmo.crossover();
+		
+		Algorithm algoritmo = new Algorithm(individuos);
+		algoritmo.run();
 	}
 }

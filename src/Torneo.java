@@ -8,6 +8,7 @@ public class Torneo {
 	ArrayList<Partida> partidas;
 	
 	public Torneo(Individuo[] individuos){
+		this.partidas = new ArrayList<>();
 		this.individuos = individuos;
 		historial = new int[6];
 		randomHistorial();
@@ -33,6 +34,18 @@ public class Torneo {
 			partidas.get(i).play();
 		}
 		
+	}
+
+	/**
+	 * Método que devuelve el total de puntos obtenidos en la partida entre todos los jugadores
+	 * @return
+	 */
+	public int getTotalPuntos() {
+		int total = 0;
+		for(int i = 0; i < individuos.length; i++){
+			total += individuos[i].getPuntos();
+		}
+		return total;
 	}
 	
 	
